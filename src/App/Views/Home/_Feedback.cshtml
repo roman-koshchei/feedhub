@@ -1,0 +1,7 @@
+﻿@using App.Data
+@model Feedback;
+
+<div class="card">
+    <h3>@(Model.User ?? "Anonymus")</h3>
+    <p>@Model.Content</p>
+</div>

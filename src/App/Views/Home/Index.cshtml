@@ -1,0 +1,17 @@
+﻿@using App.Data;
+@model IEnumerable<string>
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Feedhub</h1>
+    <p>Leave your Feedback right here, so we know what the heck in your mind:</p>
+</div>
+
+<div>
+    @foreach (var app in Model)
+    {
+        <a href="/@app">@app</a>
+    }
+</div>
