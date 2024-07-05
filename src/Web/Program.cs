@@ -116,7 +116,7 @@ async (
             <head>
                 <meta charset=""utf-8"" />
                 <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-                <script defer src=""~/lib/htmx.min.js"" asp-append-version=""true""></script>
+                <script defer src=""/lib/htmx.min.js"" asp-append-version=""true""></script>
                 <title>{app.Slug}</title>
             </head>
             <body style='overflow: scroll;'>
