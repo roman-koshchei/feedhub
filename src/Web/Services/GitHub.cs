@@ -26,7 +26,12 @@ public class GitHub
         {
             var request = new RepositoryIssueRequest();
             request.Labels.Add(FEEDHUB_LABEL);
-            var res = await client.Issue.GetAllForRepository(repoOwner, repoName, request);
+            var apiOptions = new ApiOptions
+            {
+                StartPage = 1,
+                PageSize = 10
+            };
+            var res = await client.Issue.GetAllForRepository(repoOwner, repoName, request, apiOptions);
             return res;
         }
         catch
