@@ -1,4 +1,4 @@
-﻿@using App.Data;
+﻿@using Web.Data;
 @model IEnumerable<string>
 @{
     ViewData["Title"] = "Home Page";
@@ -10,8 +10,4 @@
 </div>
 
 <div>
-    @foreach (var app in Model)
-    {
-        <a href="/@app">@app</a>
-    }
 </div>

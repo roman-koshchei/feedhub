@@ -1,7 +1,20 @@
+using Lib;
+using Web.Data;
+
+Env.LoadFile("./.env");
+var errors = Env.Ensure();
+if (errors.Count > 0)
+{
+    Env.Describe(errors);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddSingleton<Db>();
 
 var app = builder.Build();
 

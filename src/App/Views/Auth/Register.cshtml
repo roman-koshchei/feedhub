@@ -1,0 +1,16 @@
+﻿@model AuthController.RegisterInput;
+
+<h1>Register</h1>
+
+<form action="@AuthController.RegisterPath" method="post">
+    <input asp-for="@Model.Email" type="email" />
+    <span asp-validation-for="@Model.Email"></span>
+
+    <input asp-for="@Model.Password" type="password" />
+    <span asp-validation-for="@Model.Password"></span>
+
+    <input asp-for="@Model.ConfirmPassword" type="password" />
+    <span asp-validation-for="@Model.ConfirmPassword"></span>
+
+    <button>Register</button>
+</form>

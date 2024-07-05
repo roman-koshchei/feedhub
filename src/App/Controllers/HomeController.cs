@@ -1,10 +1,10 @@
-using App.Data;
-using App.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Web.Data;
+using Web.Models;
 
-namespace App.Controllers;
+namespace Web.Controllers;
 
 public class HomeController : Controller
 {
@@ -17,24 +17,11 @@ public class HomeController : Controller
 
     [HttpGet("/")]
     public IActionResult Index()
-    { 
-        return View(Store.Apps.Keys);
+    {
+        return View();
     }
 
-    [HttpGet("/{slug}")]
-    public IActionResult GetApp([FromRoute] string slug)
-    {
-        var app = Store.Apps.GetOrAdd(slug, new DbApp());
-        return View("App", new KeyValuePair<string, DbApp>(slug, app));
-    }
-
-    [HttpPost("/{slug}")]
-    public IActionResult Post([FromRoute] string slug, [FromForm] Feedback feedback)
-    {
-        var app = Store.Apps.GetOrAdd(slug, new DbApp());
-        app.Feedbacks.Add(feedback);
-        return PartialView("_Feedback", feedback);
-    }
+    
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
