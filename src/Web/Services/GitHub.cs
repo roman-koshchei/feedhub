@@ -1,22 +1,21 @@
 ﻿using Octokit;
-using Web.Data;
 
 namespace Web.Services;
 
 public class GitHub
 {
     private const string FEEDHUB_LABEL = "feedhub";
+    public const string UPVOTES_FIELD = "Upvotes:";
 
     private readonly GitHubClient client;
     private readonly string repoOwner;
     private readonly string repoName;
 
-    public GitHub(string owner, string name)
+    public GitHub(string token, string repoOwner, string repoName)
     {
-        this.repoOwner = owner;
-        this.repoName = name;
-        client = new GitHubClient(new ProductHeaderValue("roman-koshchei"));
-        var token = Secrets.GitHubApiToken;
+        this.repoOwner = repoOwner;
+        this.repoName = repoName;
+        client = new GitHubClient(new ProductHeaderValue("Feedhub"));
         client.Credentials = new Credentials(token);
     }
 
@@ -40,16 +39,76 @@ public class GitHub
         }
     }
 
-    public async Task<Exception?> CreateIssue(string? user, string title, string content)
+    public enum IssueType
+    {
+        Bug, Feedback
+    }
+
+    public string IssueTypeName(IssueType type) => type switch
+    {
+        IssueType.Bug => "bug",
+        _ => "feedback",
+    };
+
+    public async Task<Exception?> CreateIssue(string title, string content, IssueType type)
     {
         try
         {
             var issue = new NewIssue(title);
-            issue.Labels.Add("bug");
+            issue.Labels.Add(IssueTypeName(type));
             issue.Labels.Add(FEEDHUB_LABEL);
-            issue.Body = $"By {user ?? "Anonymus"}\n{content}";
+
+            //var name = string.IsNullOrEmpty(user) ? "Anonymus" : user;
+            //issue.Body = $"By {name}\n{content}";
+            issue.Body = $"{content.Trim()}\n\nUpwotes: 1";
 
             await client.Issue.Create(repoOwner, repoName, issue);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
+
+    public async Task<Exception?> UpvoteIssue(int issueNumber)
+    {
+        try
+        {
+            var issue = await client.Issue.Get(repoOwner, repoName, issueNumber);
+            var body = issue.Body.Trim();
+
+            string newBody;
+            var lastLineIndex = body.LastIndexOf('\n');
+            if (lastLineIndex < 0)
+            {
+                newBody = $"{body}\n\nUpvotes: 1";
+            }
+            else
+            {
+                var withoutLastLine = body[..lastLineIndex];
+                var lastLine = body[(lastLineIndex + 1)..].Trim();
+                if (lastLine.StartsWith(UPVOTES_FIELD))
+                {
+                    var numStr = lastLine[UPVOTES_FIELD.Length..];
+                    if (int.TryParse(numStr, out int upvotes))
+                    {
+                        newBody = $"{withoutLastLine}\n\nUpvotes: {upvotes + 1}";
+                    }
+                    else
+                    {
+                        newBody = $"{withoutLastLine}\n\nUpvotes: 1";
+                    }
+                }
+                else
+                {
+                    newBody = $"{body}\n\nUpvotes: 1";
+                }
+            }
+
+            IssueUpdate issueUpdate = new() { Body = newBody };
+            await client.Issue.Update(repoOwner, repoName, issueNumber, issueUpdate);
+
             return null;
         }
         catch (Exception ex)

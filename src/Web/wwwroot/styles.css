@@ -1,0 +1,3 @@
+﻿.hide-next-if-checked:checked + * {
+    display:none !important;
+}

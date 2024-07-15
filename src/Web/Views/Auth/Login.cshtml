@@ -1,8 +1,0 @@
-﻿@using Web.Controllers
-@model AuthController.LoginInput?;
-
-<form action="@(AuthController.LoginPath)" method="post">
-    <input type="email" name="@nameof(AuthController.LoginInput.Email)" value="@(Model != null ? Model.Email : "")" />
-    <input type="password" name="@nameof(AuthController.LoginInput.Password)" value="@(Model != null ? Model.Password : "")" />
-    <button>Login</button>
-</form>
