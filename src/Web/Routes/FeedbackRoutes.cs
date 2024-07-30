@@ -1,33 +1,29 @@
 ﻿using Lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Octokit;
 using System.ComponentModel.DataAnnotations;
 using System.Net.WebSockets;
 using Web.Config;
 using Web.Data;
 using Web.Lib;
-using Web.Routes;
 using Web.Services;
 
 namespace Web.Routes;
 
+public static class FeedbackUI
+{
+    public static string Comment(IssueComment comment)
+    {
+        return @$"<blockquote>{comment.Body}
+            {(comment.UpdatedAt.HasValue
+                ? $"<footer><cite>— {comment.UpdatedAt.Value:f}</cite></footer>"
+            : "")}</blockquote>";
+    }
+}
+
 public static class FeedbackRoutes
 {
-    private const string NotFoundView = @"
-        <!DOCTYPE html>
-        <html lang=""en"">
-        <head>
-            <meta charset=""utf-8"" />
-            <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-            <title>Not Found</title>
-        </head>
-        <body style='overflow: auto scroll;'>
-            <main role=""main"" style=""max-width:720px; margin-left:auto; margin-right:auto;"">
-                <h1>Not found</h1>
-            </main>
-        </body>
-        </html>";
-
     public static SplitElement PageView(
         string title, string slug,
         string? error, string description
@@ -55,7 +51,7 @@ public static class FeedbackRoutes
                     ></textarea>
                 </label>
 
-                <div style=""display:flex; gap:0.5rem; margin-top:0.5rem;"">
+                <div style=""margin-top:0.5rem;"" role='group'>
                     <button type='submit' value='{ReportBugAction}' class='secondary' name='action'>Report Bug</button>
                     <button type='submit' value='{LeaveFeedbackAction}' name='action'>Leave feedback</button>
                 </div>
@@ -87,7 +83,7 @@ public static class FeedbackRoutes
     );
 
     private static async Task WritePage(
-       HtmlWave wave, GitHub gitHub, string description,
+       WaveHtml wave, GitHub gitHub, string description,
        string name, string slug, string? error
    )
     {
@@ -102,23 +98,30 @@ public static class FeedbackRoutes
             foreach (var issue in issues)
             {
                 var content = issue.Body;
+                int upvotes = 0;
                 var lastLineIndex = issue.Body.LastIndexOf('\n');
-                if (lastLineIndex > 0 && content[(lastLineIndex + 1)..].Trim().StartsWith(GitHub.UPVOTES_FIELD))
+                var lastLine = content[(lastLineIndex + 1)..].Trim();
+                if (lastLineIndex > 0 && lastLine.StartsWith(GitHub.UPVOTES_FIELD))
                 {
                     content = content[..lastLineIndex];
+                    if (int.TryParse(lastLine[GitHub.UPVOTES_FIELD.Length..], out var num))
+                    {
+                        upvotes = num;
+                    }
                 }
                 if (content.Length > 200)
                 {
                     content = content[..200];
                 }
 
-                await wave.Write(@$"<hr>{UI.ListItem(issue.Title, content, $"#{issue.Number}")
-                    .Wrap($"<a href='{UpvoteRoute.Url(slug, issue.Number.ToString())}' role='button'>Upvote</a>")}");
+                await wave.Add(@$"<hr>{UI.ListItem(issue.Title, content, $"#{issue.Number}").Wrap(@$"
+                    <a href='{UpvoteRoute.Url(slug, issue.Number.ToString())}' role='button' class='outline'>Upvote {upvotes}</a>
+                    <a href='{CommentsRoute.Url(slug, issue.Number.ToString())}' role='button' class='outline contrast'>Comments</a>")}");
             }
         }
 
-        await wave.Write("<hr><footer><a class='secondary' href='/'>Powered by Feedhub</a></footer>");
-        await wave.Complete(page.End);
+        await wave.Add("<hr><footer><a class='secondary' href='/'>Powered by Feedhub</a></footer>");
+        await wave.Add(page.End);
     }
 
     public static void Map(IEndpointRouteBuilder builder)
@@ -133,46 +136,54 @@ public static class FeedbackRoutes
         builder
             .MapGet(UpvoteRoute.Pattern, UpvoteFeedback)
             .RequireRateLimiting(Globals.FixedRateLimiter);
+
+        builder
+            .MapGet(CommentsRoute.Pattern, Comments);
+
+        builder
+            .MapPost(CommentsRoute.Pattern, SubmitComment)
+            .DisableAntiforgery()
+            .RequireRateLimiting(Globals.FixedRateLimiter);
     }
 
-    public static readonly URoute1Param FeedbackRoute = new URoute("/").Param("slug");
+    public static readonly WaveRoute1Param FeedbackRoute = new WaveRoute("/").Param("slug");
 
-    private static async Task<IResult> Feedback(string slug, HttpResponse res, Db db)
+    private static async Task Feedback(string slug, HttpResponse res, Db db)
     {
-        var wave = new HtmlWave(res);
         var app = await db.Apps.AsNoTracking().FirstOrDefaultAsync(x => x.Slug == slug);
         if (app == null)
         {
-            await wave.Complete(NotFoundView);
-            return Results.NotFound();
+            Wave.Status(res, StatusCodes.Status404NotFound);
+            return;
         }
 
+        var wave = Wave.Html(res, StatusCodes.Status200OK);
         var github = new GitHub(app.GitHubApiToken, app.RepositoryOwner, app.RepositoryName);
         await WritePage(wave, github, app.Description, app.Name, app.Slug, null);
-        return Results.Ok();
+        return;
     }
 
-    private static async Task<IResult> SubmitFeedback(
+    private static async Task SubmitFeedback(
         HttpContext ctx, [FromRoute] string slug,
         [FromServices] Db db, [FromForm] PostFeedbackBody body
     )
     {
-        var wave = new HtmlWave(ctx.Response);
         var app = await db.Apps
             .Where(x => x.Slug == slug)
             .Select(x => new { x.Slug, x.Name, x.Description, x.GitHubApiToken, x.RepositoryName, x.RepositoryOwner })
             .FirstOrDefaultAsync();
         if (app == null)
         {
-            await wave.Complete(NotFoundView);
-            return Results.NotFound();
+            Wave.Status(ctx.Response, StatusCodes.Status404NotFound);
+            return;
         }
 
         var github = new GitHub(app.GitHubApiToken, app.RepositoryOwner, app.RepositoryName);
         if (!body.IsValid())
         {
+            var wave = Wave.Html(ctx.Response, StatusCodes.Status400BadRequest);
             await WritePage(wave, github, app.Description, app.Name, app.Slug, "Form isn't valid");
-            return Results.BadRequest();
+            return;
         }
 
         var err = await github.CreateIssue(body.Title, body.Content, body.Action switch
@@ -182,34 +193,130 @@ public static class FeedbackRoutes
         });
         if (err != null)
         {
+            var wave = Wave.Html(ctx.Response, StatusCodes.Status500InternalServerError);
             await WritePage(wave, github, app.Description, app.Name, app.Slug, "Can't add your feedback right now");
-            return Results.Problem();
+            return;
         }
 
-        return Results.Redirect(FeedbackRoute.Url(slug));
+        ctx.Response.Redirect(FeedbackRoute.Url(slug));
     }
 
-    public static readonly URoute2Param UpvoteRoute = FeedbackRoute.Add("upvote").Param("issue");
+    public static readonly WaveRoute2Param UpvoteRoute = FeedbackRoute.Add("upvote").Param("issue");
 
-    private static async Task<IResult> UpvoteFeedback(
+    private static async Task UpvoteFeedback(
         HttpContext ctx, [FromRoute] string slug, [FromRoute] int issue,
         [FromServices] Db db
     )
     {
-        var wave = new HtmlWave(ctx.Response);
         var app = await db.Apps
             .Where(x => x.Slug == slug)
             .Select(x => new { x.Slug, x.GitHubApiToken, x.RepositoryName, x.RepositoryOwner })
             .FirstOrDefaultAsync();
         if (app == null)
         {
-            await wave.Complete(NotFoundView);
-            return Results.NotFound();
+            Wave.Status(ctx, StatusCodes.Status404NotFound);
+            return;
         }
 
         var github = new GitHub(app.GitHubApiToken, app.RepositoryOwner, app.RepositoryName);
         _ = await github.UpvoteIssue(issue);
 
-        return Results.Redirect(FeedbackRoute.Url(slug));
+        ctx.Response.Redirect(FeedbackRoute.Url(slug));
+    }
+
+    public static readonly WaveRoute2Param CommentsRoute = FeedbackRoute.Param("issue");
+
+    public static async Task Comments(
+        HttpResponse res, [FromServices] Db db,
+        [FromRoute] string slug, [FromRoute] int issue
+    )
+    {
+        var app = await db.Apps
+            .Where(x => x.Slug == slug)
+            .Select(x => new { x.Slug, x.GitHubApiToken, x.RepositoryName, x.RepositoryOwner })
+            .FirstOrDefaultAsync();
+        if (app == null)
+        {
+            Wave.Status(res, StatusCodes.Status404NotFound);
+            return;
+        }
+
+        GitHub github = new(app.GitHubApiToken, app.RepositoryOwner, app.RepositoryName);
+        var commentsTask = github.GetIssueComments(issue).ConfigureAwait(false);
+
+        var html = Wave.Html(res, StatusCodes.Status200OK);
+        await using (await UI.Layout(
+            "Comments", "Comments for it",
+           "<script src='/scripts/comments.js' defer></script>"
+        ).Disposable(html))
+        {
+            await html.Add(UI.Heading("Comments", "Comments about this feedback report"));
+            await html.Add($"<p><a href='{FeedbackRoute.Url(slug)}'>Back</a><p>");
+            await html.Add($@"
+                <form method='post' action='{CommentsRoute.Url(slug, issue.ToString())}' role='group' id='comment-form'>
+                    <input name='{nameof(CommentForm.Comment)}' placeholder='Leave your comment' required />
+                    <button type='submit'>Comment</button>
+                </form>
+            ");
+            await html.Send();
+
+            var comments = await commentsTask;
+            if (comments == null)
+            {
+                await html.Add("<p>We can't load comments for this feedback report. Sorry. Try later.</p>");
+            }
+            else
+            {
+                await html.Add("<div id='comment-list'>");
+                foreach (var comment in comments)
+                {
+                    await html.Add(FeedbackUI.Comment(comment));
+                }
+                await html.Add("</div>");
+            }
+        }
+    }
+
+    public class CommentForm
+    {
+        [Required, MinLength(1)]
+        public required string Comment { get; set; }
+    }
+
+    public static async Task SubmitComment(
+        HttpContext ctx, [FromServices] Db db,
+        [FromRoute] string slug, [FromRoute] int issue,
+        [FromForm] CommentForm form
+    )
+    {
+        var app = await db.Apps
+            .Where(x => x.Slug == slug)
+            .Select(x => new { x.Slug, x.GitHubApiToken, x.RepositoryName, x.RepositoryOwner })
+            .FirstOrDefaultAsync();
+        if (app == null)
+        {
+            Wave.Status(ctx, StatusCodes.Status404NotFound);
+            return;
+        }
+
+        if (!form.IsValid())
+        {
+            Wave.Redirect(ctx, CommentsRoute.Url(slug, issue.ToString()));
+            return;
+        }
+
+        var github = new GitHub(app.GitHubApiToken, app.RepositoryOwner, app.RepositoryName);
+        var comment = await github.CreateComment(issue, form.Comment);
+
+        if (comment != null && Wave.IsJavascript(ctx.Request))
+        {
+            await Wave
+                .Html(ctx, StatusCodes.Status200OK)
+                .Add(FeedbackUI.Comment(comment));
+        }
+        else
+        {
+            Wave.Redirect(ctx, CommentsRoute.Url(slug, issue.ToString()));
+        }
     }
 }

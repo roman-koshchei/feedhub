@@ -2,9 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Web.Data;
-using Web.Lib;
 using Web.Routes;
-using Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,10 +32,10 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.HttpOnly = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
 
-    options.LoginPath = new PathString("/dashboard/login");
-    options.AccessDeniedPath = new PathString("/dashboard/login");
+    options.LoginPath = new PathString(AuthRoutes.GetStartedRoute.Url());
+    options.AccessDeniedPath = new PathString(AuthRoutes.GetStartedRoute.Url());
     options.LogoutPath = new PathString("/dashboard/logout");
-    options.ReturnUrlParameter = "return";
+    options.ReturnUrlParameter = "comeback";
 
     options.SlidingExpiration = true;
 });
@@ -46,19 +44,19 @@ builder.Services.AddRateLimiter(limiter =>
 {
     limiter.AddFixedWindowLimiter("fixed", options =>
     {
-        options.PermitLimit = 15;
+        options.PermitLimit = 1;
         options.Window = TimeSpan.FromMinutes(3);
         options.QueueLimit = 0;
         options.AutoReplenishment = true;
     });
 
     limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    limiter.OnRejected = ErrorHandlers.RateLimitReached;
+    limiter.OnRejected = ErrorHandlers.RateLimiterOnReject;
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseStatusCodePages(ErrorHandlers.StatusCodePages);
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -74,5 +72,6 @@ FeedbackRoutes.Map(app);
 DashboardRoutes.Map(app);
 HomeRoutes.Map(app);
 AuthRoutes.Map(app);
+ErrorHandlers.Map(app);
 
 app.Run();

@@ -10,113 +10,131 @@ namespace Web.Routes;
 
 public static class AuthRoutes
 {
-    public static readonly URoute LoginRoute = DashboardRoutes.DashboardRoute.Add("login");
-    public static readonly URoute RegisterRoute = DashboardRoutes.DashboardRoute.Add("register");
+    public static readonly WaveRoute GetStartedRoute = DashboardRoutes.DashboardRoute.Add("auth");
 
-    public class AuthForm
+    public class AuthFormBody
     {
-        [Required, EmailAddress]
+        [Required, EmailAddress, MinLength(1)]
         public required string Email { get; set; }
 
-        [Required]
+        [Required, MinLength(1)]
         public required string Password { get; set; }
     }
 
-    public static async Task LoginPage(
-        HtmlWave html, string? email, string? emailError, string? passwordError
+    public static string AuthForm(
+        string? email, string? emailError, string? passwordError, string btnLabel
     )
     {
-        await html.Complete(UI.Layout("Login - Feedhub").Wrap($@"
-            {UI.Heading("Login", "Start getting feedback from your users right now!")}
-            <form method='post' action='/dashboard/login'>
-                {UI.Input(
-                    name: nameof(AuthForm.Email), type: "email",
-                    label: "Email", placeholder: "Your email",
-                    isRequired: true, error: emailError, value: email
-                )}
-                {UI.Input(
-                    name: nameof(AuthForm.Password), type: "password",
-                    label: "Password", placeholder: "Password",
-                    isRequired: true, error: passwordError
-                )}
-
-                <button>Login</button>
-            </form>
-            <p></p>
-            <p><a href='{RegisterRoute.Url()}'>Don't have account yet? Register</a></p>
-        "));
+        return $@"<form method='post'>
+            {UI.Input(
+                name: nameof(AuthFormBody.Email), type: "email",
+                label: "Email", placeholder: "Your email",
+                isRequired: true, error: emailError, value: email
+            )}
+            {UI.Input(
+                name: nameof(AuthFormBody.Password), type: "password",
+                label: "Password", placeholder: "Password",
+                isRequired: true, error: passwordError
+            )}
+            <button>{btnLabel}</button>
+        </form>";
     }
 
     public static void Map(IEndpointRouteBuilder builder)
     {
-        builder.MapGet(LoginRoute.Pattern, async (HttpResponse res) =>
+        builder.MapGet(GetStartedRoute.Pattern, async (HttpResponse res) =>
         {
-            HtmlWave wave = new(res);
-            await LoginPage(wave, null, null, null);
+            var wave = Wave.Html(res, StatusCodes.Status200OK);
+            await GetStartedPage(wave, null, null, null);
         });
 
-        builder.MapPost(LoginRoute.Pattern,
-        async (
-            HttpResponse res,
-            [FromForm] AuthForm form,
-            [FromServices] UserManager<User> userManager,
-            [FromServices] SignInManager<User> signInManager,
-            [FromQuery] string? comeback = null
-        ) =>
+        builder.MapPost(GetStartedRoute.Pattern, GetStartedHandler).DisableAntiforgery();
+        builder.MapPost(LogoutRoute.Pattern, Logout).RequireAuthorization().DisableAntiforgery();
+    }
+
+    public static async Task GetStartedPage(
+        WaveHtml html, string? email, string? emailError, string? passwordError
+    )
+    {
+        await html.Add(UI.Layout("Get Started - Feedhub").Wrap(
+            UI.Heading("Get Started", "Start getting feedback from your users right now!"),
+            AuthForm(email, emailError, passwordError, "Confirm")
+        ));
+    }
+
+    public static async Task GetStartedHandler(
+        HttpResponse res,
+        [FromForm] AuthFormBody form,
+        [FromServices] UserManager<User> userManager,
+        [FromServices] SignInManager<User> signInManager,
+        [FromQuery] string? comeback = null
+    )
+    {
+        if (!form.IsValid())
         {
-            HtmlWave wave = new(res);
+            await GetStartedPage(Wave.Html(res, StatusCodes.Status400BadRequest),
+                form.Email, "Email is required", "Password is required"
+            );
+            return;
+        }
 
-            if (!form.IsValid()) return Results.Redirect(LoginRoute.Url());
-
-            var user = await userManager.FindByEmailAsync(form.Email);
-            if (user == null)
-            {
-                await LoginPage(wave, form.Email, "User with such email isn't found", null);
-                return Results.NotFound();
-            }
-
+        var user = await userManager.FindByEmailAsync(form.Email);
+        if (user is not null)
+        {
             var result = await signInManager.PasswordSignInAsync(user, form.Password, true, false);
             if (!result.Succeeded)
             {
-                await LoginPage(wave, form.Email, "Loogs good", "We can't login you with provided password");
-                return Results.BadRequest();
+                var wave = Wave.Html(res, StatusCodes.Status400BadRequest);
+                await GetStartedPage(wave, form.Email, "Looks good", "We can't login you with provided password");
+                return;
             }
 
-            return Results.Redirect(DashboardRoutes.DashboardRoute.Url());
-        }).DisableAntiforgery();
-
-        builder.MapGet(RegisterRoute.Pattern, async (HttpResponse res) =>
+            res.Redirect(DashboardRoutes.DashboardRoute.Url());
+            return;
+        }
+        else
         {
-            var wave = new HtmlWave(res);
-            var layout = UI.Layout("Register - Feedhub");
-            await wave.Write(layout.Start);
+            var newUser = new User { UserName = form.Email, Email = form.Email };
+            var createRes = await userManager.CreateAsync(newUser, form.Password);
+            var signInRes = await signInManager.PasswordSignInAsync(newUser, form.Password, true, false);
+            if (createRes.Succeeded && signInRes.Succeeded)
+            {
+                res.Redirect(DashboardRoutes.DashboardRoute.Url());
+                return;
+            }
 
-            await wave.Write($@"
-                <h1>Register</h1>
-                <form method='post'>
-                    <input name='{nameof(AuthForm.Email)}' placeholder='Email' />
-                    <input name='{nameof(AuthForm.Password)}' type='password' placeholder='Password' />
-                    <button>Register</button>
-                </form>
-            ");
+            string? emailError = null;
+            List<string> passwordErrors = [];
+            foreach (var error in createRes.Errors)
+            {
+                if (error.Code == nameof(IdentityErrorDescriber.DuplicateEmail))
+                {
+                    emailError = "Email is already take by another account";
+                }
+                else if (error.Code == nameof(IdentityErrorDescriber.InvalidEmail))
+                {
+                    emailError = "Email is invalid";
+                }
+                else if (error.Code.StartsWith("Password"))
+                {
+                    passwordErrors.Add(error.Description);
+                }
+            }
 
-            await wave.Complete(layout.End);
-        });
+            await GetStartedPage(Wave.Html(res, StatusCodes.Status400BadRequest),
+                form.Email, emailError, string.Join(".", passwordErrors)
+            );
+        }
+    }
 
-        builder.MapPost(RegisterRoute.Pattern,
-        async (
-            HttpResponse res,
-            [FromForm] AuthForm form,
-            [FromServices] UserManager<User> userManager
-        ) =>
-        {
-            if (!form.IsValid()) return Results.Redirect(RegisterRoute.Url());
+    public static readonly WaveRoute LogoutRoute = DashboardRoutes.DashboardRoute.Add("logout");
 
-            var user = new User { UserName = form.Email, Email = form.Email };
-            var createRes = await userManager.CreateAsync(user, form.Password);
-
-            if (createRes.Succeeded) return Results.Redirect(LoginRoute.Url());
-            return Results.Redirect(RegisterRoute.Url());
-        }).DisableAntiforgery();
+    public static async Task Logout(
+        HttpContext ctx,
+        [FromServices] SignInManager<User> signInManager
+    )
+    {
+        await signInManager.SignOutAsync();
+        Wave.Redirect(ctx, HomeRoutes.HomeRoute.Url());
     }
 }

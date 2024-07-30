@@ -2,29 +2,29 @@
 
 namespace Web.Lib;
 
-public class URoute(string pattern)
+public class WaveRoute(string pattern)
 {
-    private readonly string pattern = pattern.TrimEnd('/');
+    private readonly string pattern = pattern;
 
-    public URoute Add(string path)
+    public WaveRoute Add(string path)
     {
-        return new($"{pattern}/{path.TrimStart('/')}");
+        return new($"{pattern.TrimEnd('/')}/{path.TrimStart('/')}");
     }
 
-    public URoute1Param Param(string name) => new(pattern, name, "");
+    public WaveRoute1Param Param(string name) => new(pattern, name, "");
 
     public string Pattern => pattern;
 
-    public string Url() => pattern;
+    public string Url() => $"/{pattern.Trim('/')}";
 }
 
-public class URoute1Param(string start, string paramName, string end)
+public class WaveRoute1Param(string start, string paramName, string end)
 {
     private readonly string start = start.TrimEnd('/');
     private readonly string param = paramName.Trim('/');
     private readonly string end = end.Trim('/');
 
-    public URoute1Param Add(string path)
+    public WaveRoute1Param Add(string path)
     {
         return new(start, param, $"{end.TrimEnd('/')}/{path.TrimStart('/')}");
     }
@@ -33,10 +33,10 @@ public class URoute1Param(string start, string paramName, string end)
 
     public string Url(string param) => $"{start}/{param}/{end}";
 
-    public URoute2Param Param(string name) => new(start, param, end, name, "");
+    public WaveRoute2Param Param(string name) => new(start, param, end, name, "");
 }
 
-public class URoute2Param(string start, string param1, string middle, string param2, string end)
+public class WaveRoute2Param(string start, string param1, string middle, string param2, string end)
 {
     private readonly string start = start.TrimEnd('/');
     private readonly string param1 = param1.Trim('/');

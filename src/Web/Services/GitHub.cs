@@ -1,4 +1,5 @@
-﻿using Octokit;
+﻿using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Octokit;
 
 namespace Web.Services;
 
@@ -39,6 +40,19 @@ public class GitHub
         }
     }
 
+    public async Task<IEnumerable<IssueComment>?> GetIssueComments(int issue)
+    {
+        try
+        {
+            var issues = await client.Issue.Comment.GetAllForIssue(repoOwner, repoName, issue);
+            return issues;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public enum IssueType
     {
         Bug, Feedback
@@ -60,7 +74,7 @@ public class GitHub
 
             //var name = string.IsNullOrEmpty(user) ? "Anonymus" : user;
             //issue.Body = $"By {name}\n{content}";
-            issue.Body = $"{content.Trim()}\n\nUpwotes: 1";
+            issue.Body = $"{content.Trim()}\n\n{UPVOTES_FIELD} 1";
 
             await client.Issue.Create(repoOwner, repoName, issue);
             return null;
@@ -82,7 +96,7 @@ public class GitHub
             var lastLineIndex = body.LastIndexOf('\n');
             if (lastLineIndex < 0)
             {
-                newBody = $"{body}\n\nUpvotes: 1";
+                newBody = $"{body}\n\n{UPVOTES_FIELD} 1";
             }
             else
             {
@@ -93,16 +107,16 @@ public class GitHub
                     var numStr = lastLine[UPVOTES_FIELD.Length..];
                     if (int.TryParse(numStr, out int upvotes))
                     {
-                        newBody = $"{withoutLastLine}\n\nUpvotes: {upvotes + 1}";
+                        newBody = $"{withoutLastLine}\n\n{UPVOTES_FIELD} {upvotes + 1}";
                     }
                     else
                     {
-                        newBody = $"{withoutLastLine}\n\nUpvotes: 1";
+                        newBody = $"{withoutLastLine}\n\n{UPVOTES_FIELD} 1";
                     }
                 }
                 else
                 {
-                    newBody = $"{body}\n\nUpvotes: 1";
+                    newBody = $"{body}\n\n{UPVOTES_FIELD} 1";
                 }
             }
 
@@ -114,6 +128,18 @@ public class GitHub
         catch (Exception ex)
         {
             return ex;
+        }
+    }
+
+    public async Task<IssueComment?> CreateComment(int issue, string comment)
+    {
+        try
+        {
+            return await client.Issue.Comment.Create(repoOwner, repoName, issue, comment);
+        }
+        catch
+        {
+            return null;
         }
     }
 

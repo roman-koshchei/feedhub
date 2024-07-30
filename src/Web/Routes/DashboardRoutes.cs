@@ -22,30 +22,37 @@ public static class DashboardRoutes
             .DisableAntiforgery();
     }
 
-    public static readonly URoute DashboardRoute = new("/dashboard");
+    public static readonly WaveRoute DashboardRoute = new("/dashboard");
 
-    public static readonly URoute AppsRoute = DashboardRoute;
+    public static readonly WaveRoute AppsRoute = DashboardRoute;
 
     private static async Task AppsHandler(HttpResponse res, [FromServices] Db db)
     {
-        var html = new HtmlWave(res);
-
-        await using (await UI.Layout("Apps").Disposable(html))
+        var html = Wave.Html(res, StatusCodes.Status200OK);
+        await using (await UI.Layout("Dashboard").Disposable(html))
         {
-            await html.Write(UI.Heading("Your apps:", "Apps that you have connected to Feedhub"));
-            await html.Write(AppFormComponent);
+            await html.Add(UI.Heading("Dashboard", "Apps that you have connected to Feedhub"));
+            await html.Add(Tags.A.Href(AuthRoutes.LogoutRoute.Url()).Attr("role", "button").Wrap("Logout"));
+            await html.Add("<p></p>");
+            await html.Add(AppFormComponent);
             await html.Send();
 
-            var apps = await db.Apps.AsNoTracking().Select(x => new { x.Id, x.Name, x.Description }).ToListAsync();
+            var apps = await db.Apps
+                .AsNoTracking()
+                .Select(x => new { x.Id, x.Name, x.Description, x.Slug })
+                .ToListAsync();
+
             foreach (var app in apps)
             {
-                await html.Write("<hr>");
-                await html.Write(UI.ListItem(app.Name, app.Description).Wrap(
-                    $"<a role='button' href='{DeleteAppRoute.Url(app.Id)}'>Delete</a>"
+                await html.Add("<hr>");
+                await html.Add(UI.ListItem(app.Name, app.Description).Wrap(
+                    Tags.Div.Attr("role", "group").Wrap(
+                        Tags.A.Role("button").Href(DeleteAppRoute.Url(app.Id)).Wrap("Delete"),
+                        Tags.A.Role("button").Href(FeedbackRoutes.FeedbackRoute.Url(app.Slug)).Wrap("Visit")
+                    )
                 ));
             }
         }
-        await html.Complete();
     }
 
     public class CreateAppInput
@@ -81,7 +88,7 @@ public static class DashboardRoutes
         </form>
     ";
 
-    private static async Task<IResult> CreateAppHandler(
+    private static async Task CreateAppHandler(
         HttpContext ctx, Db db, [FromForm] CreateAppInput form
     )
     {
@@ -89,6 +96,12 @@ public static class DashboardRoutes
         {
             var userId = ctx.User.Id();
             if (!form.IsValid()) throw new InvalidDataException();
+
+            var appsCount = await db.Apps.CountAsync();
+            if (appsCount > 3)
+            {
+                throw new Exception();
+            }
 
             var slugTaken = await db.Apps.AnyAsync(x => x.Slug == form.Slug);
             if (slugTaken) throw new Exception();
@@ -107,20 +120,24 @@ public static class DashboardRoutes
         }
         catch { }
 
-        return Results.Redirect("/dashboard");
+        ctx.Response.Redirect(DashboardRoute.Url());
     }
 
-    public static readonly URoute1Param DeleteAppRoute
+    public static readonly WaveRoute1Param DeleteAppRoute
         = DashboardRoute.Add("delete").Param("id");
 
-    public static async Task<IResult> DeleteAppHandler(
+    public static async Task DeleteAppHandler(
         HttpContext ctx, [FromServices] Db db, [FromRoute] string id
     )
     {
         var userId = ctx.User.Id();
 
         var app = await db.Apps.FirstOrDefaultAsync(x => x.UserId == userId && x.Id == id);
-        if (app == null) return Results.Redirect(DashboardRoute.Url());
+        if (app == null)
+        {
+            ctx.Response.Redirect(DashboardRoute.Url());
+            return;
+        }
 
         try
         {
@@ -129,6 +146,6 @@ public static class DashboardRoutes
         }
         catch { }
 
-        return Results.Redirect(DashboardRoute.Url());
+        ctx.Response.Redirect(DashboardRoute.Url());
     }
 }
