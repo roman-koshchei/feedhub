@@ -1,22 +1,26 @@
+using Lib;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Web.Data;
 using Web.Handlers;
 
+Env.LoadFile("./.env");
+var dbConnectionString = Env.GetRequired("DB_CONNECTION_STRING");
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddDbContext<Db>(options => options.UseSqlite($"Data Source=./feedhub.db"));
+builder.Services.AddDbContext<Db>(options => options.UseNpgsql(dbConnectionString));
 builder.Services
     .AddIdentity<User, IdentityRole>(options =>
     {
         options.Password.RequireNonAlphanumeric = false;
-        options.Password.RequiredLength = 1;
-        options.Password.RequireUppercase = false;
-        options.Password.RequireLowercase = false;
-        options.Password.RequireDigit = false;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireDigit = true;
     })
     .AddEntityFrameworkStores<Db>()
     .AddDefaultTokenProviders();
@@ -54,8 +58,11 @@ builder.Services.AddRateLimiter(limiter =>
     limiter.OnRejected = ErrorHandlers.RateLimiterOnReject;
 });
 
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
+app.MapHealthChecks("/healthz");
 app.UseStatusCodePages(ErrorHandlers.StatusCodePages);
 
 app.UseHttpsRedirection();
