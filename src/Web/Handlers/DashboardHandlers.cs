@@ -1,16 +1,14 @@
 ﻿using Lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Octokit;
 using System.ComponentModel.DataAnnotations;
-using System.Xml.Linq;
 using Web.Data;
 using Web.Lib;
 using Web.Services;
 
-namespace Web.Routes;
+namespace Web.Handlers;
 
-public static class DashboardRoutes
+public static class DashboardHandlers
 {
     public static void Map(IEndpointRouteBuilder builder)
     {
@@ -32,24 +30,35 @@ public static class DashboardRoutes
         await using (await UI.Layout("Dashboard").Disposable(html))
         {
             await html.Add(UI.Heading("Dashboard", "Apps that you have connected to Feedhub"));
-            await html.Add(Tags.A.Href(AuthRoutes.LogoutRoute.Url()).Attr("role", "button").Wrap("Logout"));
+            await html.Add(Tags.A.Href(AuthHandlers.LogoutRoute.Url()).Wrap("Logout"));
             await html.Add("<p></p>");
             await html.Add(AppFormComponent);
             await html.Send();
 
             var apps = await db.Apps
                 .AsNoTracking()
-                .Select(x => new { x.Id, x.Name, x.Description, x.Slug })
+                .Select(x => new { x.Id, x.Name, x.Description, x.Slug, x.RepositoryName, x.RepositoryOwner })
                 .ToListAsync();
 
             foreach (var app in apps)
             {
                 await html.Add("<hr>");
                 await html.Add(UI.ListItem(app.Name, app.Description).Wrap(
-                    Tags.Div.Attr("role", "group").Wrap(
-                        Tags.A.Role("button").Href(DeleteAppRoute.Url(app.Id)).Wrap("Delete"),
-                        Tags.A.Role("button").Href(FeedbackRoutes.FeedbackRoute.Url(app.Slug)).Wrap("Visit")
-                    )
+                    Tags.Div.Role("group").Wrap(
+                        Tags.A
+                            .Role("button")
+                            .Href(FeedbackHandlers.FeedbackRoute.Url(app.Slug))
+                            .Wrap("Visit"),
+                        Tags.A
+                            .Role("button")
+                            .Class("contrast")
+                            .Blank()
+                            .Href($"https://github.com/{app.RepositoryOwner}/{app.RepositoryName}")
+                            .Wrap("GitHub")
+                    ),
+                     Tags.A
+                         .Href(DeleteAppRoute.Url(app.Id))
+                         .Wrap("Delete Without Confirmation")
                 ));
             }
         }

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Web.Lib;
 using Web.Services;
 
-namespace Web.Routes;
+namespace Web.Handlers;
 
 public static class ErrorHandlers
 {
@@ -21,14 +21,20 @@ public static class ErrorHandlers
     public static async Task TooManyRequestsPage(HttpContext ctx)
     {
         var html = Wave.Html(ctx.Response, StatusCodes.Status429TooManyRequests);
-        await html.Add(UI.Layout("Limit Reached - Feedhub", "You reached the rate limit of form submissions").Wrap(@$"
-            {UI.Heading("Rate limit reached", "You send too much of form submissions. We think you are bot.")}
-            <p><a href='{FeedbackRoutes.FeedbackRoute.Url("feedhub")}'>
-                You are not a bot? Just send a lot of feedbacks? Report bug here.
-            </a></p>
-            <p><a href='{HomeRoutes.HomeRoute.Url()}'>
-                Checkout Feedhub if you want to collect your users' feedback.
-            </a></p>"
+
+        await html.Add(UI.Layout(
+            title: "Limit Reached - Feedhub",
+            description: "You reached the rate limit of form submissions"
+        ).Wrap(
+            UI.Heading("Rate limit reached", "You send too much of form submissions. We think you are bot."),
+            Tags.P.Wrap(Tags.A
+                .Href(FeedbackHandlers.FeedbackRoute.Url("feedhub"))
+                .Wrap("You are not a bot? Just send a lot of feedbacks? Report bug here.")
+            ),
+            Tags.P.Wrap(Tags.A
+                .Href(HomeHandlers.HomeRoute.Url())
+                .Wrap("Checkout Feedhub if you want to collect your users' feedback.")
+            )
         ));
     }
 
@@ -46,12 +52,12 @@ public static class ErrorHandlers
 
     public static async Task NotFoundPage(HttpContext ctx)
     {
-        var html = Wave.Html(ctx, StatusCodes.Status404NotFound);
-        await using (await UI.Layout("Not found - Feedhub").Disposable(html))
-        {
-            await html.Add(UI.Heading("Not found", "We can't found a resource you are requesting"));
-            await html.Add($"<a href='{HomeRoutes.HomeRoute.Url()}'>Come back home</a>");
-        }
+        var wave = Wave.Html(ctx, StatusCodes.Status404NotFound);
+        var html = UI.Layout("Not found - Feedhub").Wrap(
+            UI.Heading("Not found", "We can't found a resource you are requesting"),
+            Tags.A.Href(HomeHandlers.HomeRoute.Url()).Wrap("Come back home")
+        );
+        await wave.Add(html);
     }
 
     public static async Task StatusCodePages(StatusCodeContext ctx)

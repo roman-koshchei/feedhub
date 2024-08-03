@@ -41,4 +41,17 @@ function initOnPopState() {
     console.log("init on pop state")
 }
 
-document.addEventListener('DOMContentLoaded', initOnPopState)
+/** @param {string} url */
+function pushCurrentDocumentToHistory(url) {
+    window.history.pushState({ wave: document.documentElement.outerHTML }, '', url)
+}
+
+function ready(fn) {
+    if (document.readyState === 'complete') {
+        fn()
+    } else {
+        document.addEventListener('DOMContentLoaded', fn)
+    }
+}
+
+ready(initOnPopState)

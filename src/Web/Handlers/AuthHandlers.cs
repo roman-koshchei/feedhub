@@ -6,11 +6,11 @@ using Web.Data;
 using Web.Lib;
 using Web.Services;
 
-namespace Web.Routes;
+namespace Web.Handlers;
 
-public static class AuthRoutes
+public static class AuthHandlers
 {
-    public static readonly WaveRoute GetStartedRoute = DashboardRoutes.DashboardRoute.Add("auth");
+    public static readonly WaveRoute GetStartedRoute = DashboardHandlers.DashboardRoute.Add("auth");
 
     public class AuthFormBody
     {
@@ -49,7 +49,7 @@ public static class AuthRoutes
         });
 
         builder.MapPost(GetStartedRoute.Pattern, GetStartedHandler).DisableAntiforgery();
-        builder.MapPost(LogoutRoute.Pattern, Logout).RequireAuthorization().DisableAntiforgery();
+        builder.MapGet(LogoutRoute.Pattern, Logout).RequireAuthorization().DisableAntiforgery();
     }
 
     public static async Task GetStartedPage(
@@ -89,7 +89,7 @@ public static class AuthRoutes
                 return;
             }
 
-            res.Redirect(DashboardRoutes.DashboardRoute.Url());
+            res.Redirect(DashboardHandlers.DashboardRoute.Url());
             return;
         }
         else
@@ -99,7 +99,7 @@ public static class AuthRoutes
             var signInRes = await signInManager.PasswordSignInAsync(newUser, form.Password, true, false);
             if (createRes.Succeeded && signInRes.Succeeded)
             {
-                res.Redirect(DashboardRoutes.DashboardRoute.Url());
+                res.Redirect(DashboardHandlers.DashboardRoute.Url());
                 return;
             }
 
@@ -127,7 +127,7 @@ public static class AuthRoutes
         }
     }
 
-    public static readonly WaveRoute LogoutRoute = DashboardRoutes.DashboardRoute.Add("logout");
+    public static readonly WaveRoute LogoutRoute = DashboardHandlers.DashboardRoute.Add("logout");
 
     public static async Task Logout(
         HttpContext ctx,
@@ -135,6 +135,6 @@ public static class AuthRoutes
     )
     {
         await signInManager.SignOutAsync();
-        Wave.Redirect(ctx, HomeRoutes.HomeRoute.Url());
+        Wave.Redirect(ctx, HomeHandlers.HomeRoute.Url());
     }
 }

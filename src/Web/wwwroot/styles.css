@@ -1,3 +1,7 @@
 ﻿.hide-next-if-checked:checked + * {
-    display:none !important;
+    display: none !important;
+}
+
+* + .hide-self-if-has-previous {
+    display: none !important;
 }

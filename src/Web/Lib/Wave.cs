@@ -42,6 +42,20 @@ public class Wave
         ctx.Response.Headers.Append("WaveRedirect", url);
     }
 
+    /// <summary>
+    /// Performs server-side redirection
+    /// </summary>
+    public static void HttpRedirect(HttpContext ctx, string url, bool permanent = false)
+    {
+        ctx.Response.Redirect(url, permanent);
+    }
+
+    /// <summary>
+    /// Automatically determines weather perform client-side redirect or server-side
+    /// </summary>
+    /// <param name="ctx"></param>
+    /// <param name="url"></param>
+    /// <param name="permanent"></param>
     public static void Redirect(HttpContext ctx, string url, bool permanent = false)
     {
         if (IsJavascript(ctx.Request))

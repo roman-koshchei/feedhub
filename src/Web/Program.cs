@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Web.Data;
-using Web.Routes;
+using Web.Handlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,8 +32,8 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.HttpOnly = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
 
-    options.LoginPath = new PathString(AuthRoutes.GetStartedRoute.Url());
-    options.AccessDeniedPath = new PathString(AuthRoutes.GetStartedRoute.Url());
+    options.LoginPath = new PathString(AuthHandlers.GetStartedRoute.Url());
+    options.AccessDeniedPath = new PathString(AuthHandlers.GetStartedRoute.Url());
     options.LogoutPath = new PathString("/dashboard/logout");
     options.ReturnUrlParameter = "comeback";
 
@@ -44,7 +44,7 @@ builder.Services.AddRateLimiter(limiter =>
 {
     limiter.AddFixedWindowLimiter("fixed", options =>
     {
-        options.PermitLimit = 1;
+        options.PermitLimit = 15;
         options.Window = TimeSpan.FromMinutes(3);
         options.QueueLimit = 0;
         options.AutoReplenishment = true;
@@ -68,10 +68,10 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-FeedbackRoutes.Map(app);
-DashboardRoutes.Map(app);
-HomeRoutes.Map(app);
-AuthRoutes.Map(app);
+FeedbackHandlers.Map(app);
+DashboardHandlers.Map(app);
+HomeHandlers.Map(app);
+AuthHandlers.Map(app);
 ErrorHandlers.Map(app);
 
 app.Run();

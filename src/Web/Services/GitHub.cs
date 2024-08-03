@@ -1,23 +1,28 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using Octokit;
+﻿using Octokit;
+using Web.Lib;
 
 namespace Web.Services;
 
-public class GitHub
+public class GitHub(string token, string repoOwner, string repoName)
 {
     private const string FEEDHUB_LABEL = "feedhub";
     public const string UPVOTES_FIELD = "Upvotes:";
 
-    private readonly GitHubClient client;
-    private readonly string repoOwner;
-    private readonly string repoName;
-
-    public GitHub(string token, string repoOwner, string repoName)
+    private readonly GitHubClient client = new(new ProductHeaderValue("Feedhub"))
     {
-        this.repoOwner = repoOwner;
-        this.repoName = repoName;
-        client = new GitHubClient(new ProductHeaderValue("Feedhub"));
-        client.Credentials = new Credentials(token);
+        Credentials = new Credentials(token)
+    };
+
+    public async Task<Issue?> GetIssue(int number)
+    {
+        try
+        {
+            return await client.Issue.Get(repoOwner, repoName, number);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IReadOnlyList<Issue>?> GetFeedHubIssues()
@@ -64,24 +69,24 @@ public class GitHub
         _ => "feedback",
     };
 
-    public async Task<Exception?> CreateIssue(string title, string content, IssueType type)
+    public async Task<Res<Issue>> CreateIssue(string title, string content, IssueType type)
     {
         try
         {
-            var issue = new NewIssue(title);
-            issue.Labels.Add(IssueTypeName(type));
-            issue.Labels.Add(FEEDHUB_LABEL);
+            var newIssue = new NewIssue(title);
+            newIssue.Labels.Add(IssueTypeName(type));
+            newIssue.Labels.Add(FEEDHUB_LABEL);
 
             //var name = string.IsNullOrEmpty(user) ? "Anonymus" : user;
             //issue.Body = $"By {name}\n{content}";
-            issue.Body = $"{content.Trim()}\n\n{UPVOTES_FIELD} 1";
+            newIssue.Body = $"{content.Trim()}\n\n{UPVOTES_FIELD} 1";
 
-            await client.Issue.Create(repoOwner, repoName, issue);
-            return null;
+            var issue = await client.Issue.Create(repoOwner, repoName, newIssue);
+            return new(issue);
         }
         catch (Exception ex)
         {
-            return ex;
+            return new(ex);
         }
     }
 

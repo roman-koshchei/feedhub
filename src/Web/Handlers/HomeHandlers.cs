@@ -4,9 +4,9 @@ using Web.Data;
 using Web.Lib;
 using Web.Services;
 
-namespace Web.Routes;
+namespace Web.Handlers;
 
-public static class HomeRoutes
+public static class HomeHandlers
 {
     public static readonly WaveRoute HomeRoute = new("/");
 
@@ -19,7 +19,8 @@ public static class HomeRoutes
 
             await wave.Add(layout.Start);
             await wave.Add(UI.Heading("Feedhub", "Store your customers' feedback inside of your GitHub. You own data and you can easily start working on it."));
-            await wave.Add($"<a href='{DashboardRoutes.DashboardRoute.Url()}' role='button'>Go to dashboard</a>");
+            await wave.Add($"<a href='{DashboardHandlers.DashboardRoute.Url()}' role='button'>Go to dashboard</a>");
+            await wave.Add(Tags.A.Href("https://github.com/roman-koshchei/feedhub").Blank().Attr("style", "margin-left: 1rem;").Wrap("GitHub"));
             await wave.Send("<hr>");
 
             var apps = await db.Apps.ToListAsync();
