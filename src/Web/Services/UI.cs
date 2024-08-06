@@ -5,6 +5,24 @@ namespace Web.Services;
 
 public static class UI
 {
+    public static SplitElement BaseLayout(string title, string description = "", string head = "") => new(@$"
+        <!DOCTYPE html><html lang='en' data-theme='light'>
+        <head>
+            <meta charset='utf-8' />
+            <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+            <link rel='stylesheet' href='/pico.blue.min.css' />
+            <link rel='stylesheet' href='/styles.css' />
+
+            <title>{title}</title>
+            <meta name='description' content='{description ?? "Leave your Feedback right here, so we know what the heck in your mind"}' />
+
+            <script src='/scripts/wave.js' defer></script>
+
+            {head}
+        </head>
+        <body style='overflow: auto scroll; padding: 1rem'>",
+    @"</body></html>");
+
     public static SplitElement Layout(string title, string description = "", string head = "") => new(@$"
         <!DOCTYPE html><html lang='en' data-theme='light'>
         <head>

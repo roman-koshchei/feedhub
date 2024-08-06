@@ -8,8 +8,6 @@ public class SplitElement(string start, string end)
     public string Start { get; } = start;
     public string End { get; } = end;
 
-    public string Wrap(string content) => $"{Start}{content}{End}";
-
     public string Wrap(params string[] content)
     {
         var sb = new StringBuilder(Start);

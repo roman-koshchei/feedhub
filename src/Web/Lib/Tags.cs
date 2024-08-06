@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Text;
 using System.Web;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Web.Lib;
 
@@ -9,10 +10,13 @@ public class Tags
 {
     public static Tag Label => new("label");
     public static Tag Button => new("button");
+    public static Tag Small => new("small");
     public static Tag Form => new("form");
     public static ATag A => new("a");
     public static Tag Div => new("div");
     public static Tag Textarea => new("textarea");
+    public static Tag Select => new("select");
+    public static Tag Option => new("option");
     public static Tag P => new("p");
     public static Tag Input => new("input");
     public static Tag Footer => new("footer");
@@ -93,11 +97,6 @@ public class Tag<T>(string tag) where T : Tag<T>
         return (T)this;
     }
 
-    public string Wrap(string content)
-    {
-        return $"<{tag} {string.Join(" ", attributes.Select((x) => x.Item2 is null ? $"{x.Item1}" : $"{x.Item1}='{x.Item2}'"))}>{content}</{tag}>";
-    }
-
     public override string ToString()
     {
         return Wrap("");
@@ -129,6 +128,8 @@ public class Tag<T>(string tag) where T : Tag<T>
         sb.Append($"</{tag}>");
         return sb.ToString();
     }
+
+    public static implicit operator string(Tag<T> tag) => tag.Wrap();
 }
 
 public class ATag(string tag) : Tag<ATag>(tag)

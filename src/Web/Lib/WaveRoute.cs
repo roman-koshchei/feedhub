@@ -18,6 +18,8 @@ public class WaveRoute(string pattern)
     public string Pattern => pattern;
 
     public string Url() => $"/{pattern.Trim('/')}";
+
+    public static WaveRoute New(string pattern) => new(pattern);
 }
 
 public class WaveRoute<TParam1>(string start, string paramName, string end)

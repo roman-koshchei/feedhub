@@ -1,8 +1,8 @@
-﻿using Lib;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Web.Data;
 using Web.Lib;
 using Web.Services;
+using static Web.Lib.Tags;
 
 namespace Web.Handlers;
 
@@ -12,7 +12,7 @@ public static class HomeHandlers
 
     public static void Map(IEndpointRouteBuilder builder)
     {
-        builder.MapGet(HomeRoute.Pattern, async (HttpResponse res, Db db) =>
+        _ = builder.MapGet(HomeRoute.Pattern, async (HttpResponse res, Db db) =>
         {
             var wave = Wave.Html(res, StatusCodes.Status200OK);
             var layout = UI.Layout("Feedhub - Customers feedback inside of your GitHub");
@@ -20,7 +20,7 @@ public static class HomeHandlers
             await wave.Add(layout.Start);
             await wave.Add(UI.Heading("Feedhub", "Store your customers' feedback inside of your GitHub. You own data and you can easily start working on it."));
             await wave.Add($"<a href='{DashboardHandlers.DashboardRoute.Url()}' role='button'>Go to dashboard</a>");
-            await wave.Add(Tags.A.Href("https://github.com/roman-koshchei/feedhub").Blank().Attr("style", "margin-left: 1rem;").Wrap("GitHub"));
+            await wave.Add(A.Href("https://github.com/roman-koshchei/feedhub").Blank().Attr("style", "margin-left: 1rem;").Wrap("GitHub"));
             await wave.Send("<hr>");
 
             var apps = await db.Apps.ToListAsync();
@@ -32,6 +32,34 @@ public static class HomeHandlers
             await wave.Add("</ul></section>");
 
             await wave.Add(layout.End);
+        });
+
+        _ = builder.MapGet(WaveRoute.New("email").Pattern, static async (HttpContext ctx) =>
+        {
+            await Wave.Html(ctx, 200).Add(UI.BaseLayout("Email", "Creation of email page").Wrap(Form.Class("grid").Wrap(
+                Div.Wrap(
+                    Label.Wrap("Email preset",
+                        Select.Wrap(
+                            Option.Flag("selected").Attr("value", "").Wrap("Use new email sender"),
+                            Option.Wrap("Roman Koshchei - roman@flurium.com"),
+                            Option.Wrap("Flurium - roman@flurium.com")
+                        ),
+                        Small.Wrap("If you select preset then it's prioritized over inputs")
+                    ),
+                    Div.Class("grid").Wrap(
+                        Label.Wrap("Your name", Input.Placeholder("Roman Koshchei")),
+                        Label.Wrap("Your email", Input.Placeholder("email@example.com"))
+                    ),
+                    P.Wrap(Label.Wrap(Input.Attr("type", "checkbox"), "Save sender?")),
+                    Label.Wrap("Subject", Input.Placeholder("Story about ...")),
+                    Button.Wrap("Send")
+                ),
+                Div.Wrap(
+                    Label.Wrap("Markdown content", Textarea.Attr("rows", "15").Placeholder(
+                        "# Heading 1 \n\n Some content of paragraph \n\n - list item 1"
+                    ))
+                )
+            )));
         });
     }
 }
