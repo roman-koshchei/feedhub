@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Routing.Constraints;
-
-namespace Web.Lib;
+﻿namespace Web.Lib;
 
 /// <summary>
 /// Wave is a set of helpers to work with http on more low-level, but using high-level functions.

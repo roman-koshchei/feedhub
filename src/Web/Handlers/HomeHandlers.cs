@@ -38,21 +38,22 @@ public static class HomeHandlers
         {
             await Wave.Html(ctx, 200).Add(UI.BaseLayout("Email", "Creation of email page").Wrap(Form.Class("grid").Wrap(
                 Div.Wrap(
-                    Label.Wrap("Email preset",
+                    Label[
+                        "Email preset",
                         Select.Wrap(
-                            Option.Flag("selected").Attr("value", "").Wrap("Use new email sender"),
-                            Option.Wrap("Roman Koshchei - roman@flurium.com"),
-                            Option.Wrap("Flurium - roman@flurium.com")
+                            Option.Flag("selected").Attr("value", "")["Use new email sender"],
+                            Option["Roman Koshchei - roman@flurium.com"],
+                            Option["Flurium - roman@flurium.com"]
                         ),
-                        Small.Wrap("If you select preset then it's prioritized over inputs")
-                    ),
-                    Div.Class("grid").Wrap(
-                        Label.Wrap("Your name", Input.Placeholder("Roman Koshchei")),
-                        Label.Wrap("Your email", Input.Placeholder("email@example.com"))
-                    ),
+                        Small["If you select preset then it's prioritized over inputs"]
+                    ],
+                    Div.Class("grid")[
+                        Label["Your name", Input.Placeholder("Roman Koshchei")],
+                        Label["Your email", Input.Placeholder("email@example.com")]
+                    ],
                     P.Wrap(Label.Wrap(Input.Attr("type", "checkbox"), "Save sender?")),
                     Label.Wrap("Subject", Input.Placeholder("Story about ...")),
-                    Button.Wrap("Send")
+                    Button["Send"]
                 ),
                 Div.Wrap(
                     Label.Wrap("Markdown content", Textarea.Attr("rows", "15").Placeholder(

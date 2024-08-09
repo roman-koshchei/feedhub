@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using Web.Data;
 using Web.Lib;
 using Web.Services;
+using static Web.Lib.Tags;
 
 namespace Web.Handlers;
 
@@ -44,19 +45,19 @@ public static class DashboardHandlers
             {
                 await html.Add("<hr>");
                 await html.Add(UI.ListItem(app.Name, app.Description).Wrap(
-                    Tags.Div.Role("group").Wrap(
-                        Tags.A
-                            .Role("button")
-                            .Href(FeedbackHandlers.FeedbackRoute.Url(app.Slug))
-                            .Wrap("Visit"),
-                        Tags.A
-                            .Role("button")
-                            .Class("contrast")
-                            .Blank()
-                            .Href($"https://github.com/{app.RepositoryOwner}/{app.RepositoryName}")
-                            .Wrap("GitHub")
-                    ),
-                     Tags.A
+                    Div.Role("group")[
+                        A.Role("button").Href(FeedbackHandlers.FeedbackRoute.Url(app.Slug))
+                        [
+                            "Visit"
+                        ],
+                        A
+                        .Role("button")
+                        .Class("contrast")
+                        .Blank()
+                        .Href($"https://github.com/{app.RepositoryOwner}/{app.RepositoryName}")
+                        ["GitHub"]
+                    ],
+                     A
                          .Href(DeleteAppRoute.Url(app.Id))
                          .Wrap("Delete Without Confirmation")
                 ));

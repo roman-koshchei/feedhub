@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Web;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -100,6 +101,11 @@ public class Tag<T>(string tag) where T : Tag<T>
     public override string ToString()
     {
         return Wrap("");
+    }
+
+    public string this[params string[] content]
+    {
+        get => Wrap(content);
     }
 
     public string Wrap(params string[] content)

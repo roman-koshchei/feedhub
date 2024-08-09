@@ -1,10 +1,8 @@
 ﻿using Lib;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Razor.TagHelpers;
 using Microsoft.EntityFrameworkCore;
 using Octokit;
 using System.ComponentModel.DataAnnotations;
-using System.Web;
 using Web.Config;
 using Web.Data;
 using Web.Lib;
