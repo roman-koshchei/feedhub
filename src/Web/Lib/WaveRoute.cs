@@ -11,7 +11,7 @@ public class WaveRoute(string pattern)
         return new($"{pattern.TrimEnd('/')}/{path.TrimStart('/')}");
     }
 
-    public WaveRoute1Param Param(string name) => new(pattern, name, "");
+    public WaveRoute<string> Param(string name) => new(pattern, name, "");
 
     public WaveRoute<T> Param<T>(string name) => new(pattern, name, "");
 

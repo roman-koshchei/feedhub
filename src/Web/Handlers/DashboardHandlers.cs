@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using Web.Data;
 using Web.Lib;
 using Web.Services;
+using static Web.Handlers.FeedbackHandlers;
 using static Web.Lib.Tags;
 
 namespace Web.Handlers;
@@ -17,6 +18,12 @@ public static class DashboardHandlers
         builder.MapGet(DeleteAppRoute.Pattern, DeleteAppHandler).RequireAuthorization();
 
         builder.MapPost(AppsRoute.Pattern, CreateAppHandler)
+            .RequireAuthorization()
+            .DisableAntiforgery();
+
+        builder.MapGet(EditAppRoute.Pattern, EditAppGetHandler)
+            .RequireAuthorization();
+        builder.MapPost(EditAppRoute.Pattern, EditAppPostHandler)
             .RequireAuthorization()
             .DisableAntiforgery();
     }
@@ -46,6 +53,7 @@ public static class DashboardHandlers
                 await html.Add("<hr>");
                 await html.Add(UI.ListItem(app.Name, app.Description).Wrap(
                     Div.Role("group")[
+                         A.Role("button").Href(EditAppRoute.Url(app.Id))["Edit"],
                         A.Role("button").Href(FeedbackHandlers.FeedbackRoute.Url(app.Slug))
                         [
                             "Visit"
@@ -63,6 +71,72 @@ public static class DashboardHandlers
                 ));
             }
         }
+    }
+
+    public class EditAppForm
+    {
+        [Required, MinLength(1)]
+        public string GitHubApiToken { get; set; } = string.Empty;
+    }
+
+    public static readonly WaveRoute<string> EditAppRoute = DashboardRoute.Param("id");
+
+    private static async Task EditAppGetHandler(HttpContext ctx, [FromServices] Db db, [FromRoute] string id)
+    {
+        var app = await db.Apps.Where(x => x.Id == id).FirstOrDefaultAsync();
+        if (app == null)
+        {
+            Wave.Redirect(ctx, AppsRoute.Url());
+            return;
+        }
+
+        WaveHtml wave = new(ctx.Response, 200);
+
+        await wave.Add(UI.Layout($"Edit App: {app.Name}").Wrap(
+            UI.Heading($"Edit: {app.Name}", "Edit properties of application"),
+            Tags.A.Href(AppsRoute.Url())["Back"],
+            "<hr>",
+            Tags.Form.Attr("method", "post").Attr("action", EditAppRoute.Url(id))[
+                 Tags.Label.Wrap("GitHub api token",
+                    Tags.Input
+                        .Attr("type", "password")
+                        .Attr("name", nameof(EditAppForm.GitHubApiToken))
+                        .Attr("value", app.GitHubApiToken)
+                        .Flag("required"),
+                     Tags.Button
+                        .Attr("type", "submit")
+                        ["Change"]
+                )
+            ]
+        ));
+    }
+
+    private static async Task EditAppPostHandler(HttpContext ctx, [FromServices] Db db, [FromRoute] string id, [FromForm] EditAppForm form)
+    {
+        if (!form.IsValid())
+        {
+            Wave.Redirect(ctx, AppsRoute.Url());
+            return;
+        }
+
+        var app = await db.Apps.Where(x => x.Id == id).FirstOrDefaultAsync();
+        if (app == null)
+        {
+            Wave.Redirect(ctx, AppsRoute.Url());
+            return;
+        }
+
+        try
+        {
+            app.GitHubApiToken = form.GitHubApiToken;
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
+        }
+
+        Wave.Redirect(ctx, AppsRoute.Url());
+        return;
     }
 
     public class CreateAppInput
@@ -133,7 +207,7 @@ public static class DashboardHandlers
         ctx.Response.Redirect(DashboardRoute.Url());
     }
 
-    public static readonly WaveRoute1Param DeleteAppRoute
+    public static readonly WaveRoute<string> DeleteAppRoute
         = DashboardRoute.Add("delete").Param("id");
 
     public static async Task DeleteAppHandler(
