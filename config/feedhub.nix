@@ -1,10 +1,9 @@
 { config, pkgs, ... }:
 
 let
-  bluePort = 6100;
-  greenPort = bluePort + 1;
-
-  feedhub = port: {
+  port = 6100;
+in {
+  systemd.services.feedhub = {
     enable = true;
     description = "Feedhub systemd instance";
 
@@ -24,14 +23,8 @@ let
       RestartSec = 0;
     };
   };
-in {
-  # 2 instances
-  systemd.services.feedhub-blue = feedhub bluePort;
-  # can't 
-  # systemd.services.feedhub-green = feedhub greenPort;
 
   services.caddy.virtualHosts."feedhub.cookingweb.dev".extraConfig = ''
-    reverse_proxy :${toString bluePort}
+    reverse_proxy :${toString port}
   '';
-    
 }

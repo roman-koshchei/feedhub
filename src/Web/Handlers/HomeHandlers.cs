@@ -18,7 +18,7 @@ public static class HomeHandlers
             var layout = UI.Layout("Feedhub - Customers feedback inside of your GitHub");
 
             await wave.Add(layout.Start);
-            await wave.Add(UI.Heading("Feedhub", "Store your customers' feedback inside of your GitHub. You own data and you can easily start working on it!"));
+            await wave.Add(UI.Heading("Feedhub", "Store your customers' feedback inside of your GitHub. You own data and you can easily start working on it."));
             await wave.Add($"<a href='{DashboardHandlers.DashboardRoute.Url()}' role='button'>Go to dashboard</a>");
             await wave.Add(A.Href("https://github.com/roman-koshchei/feedhub").Blank().Attr("style", "margin-left: 1rem;").Wrap("GitHub"));
             await wave.Send("<hr>");
